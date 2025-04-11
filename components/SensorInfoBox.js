@@ -7,7 +7,9 @@ const SensorInfoBox = ({ label, value, progress, color, showPercentage }) => (
   <View style={dashboardStyles.infoBox}>
     <Text style={dashboardStyles.label}>{label}</Text>
     <Text style={dashboardStyles.value}>
-      {value} {showPercentage && label === 'HUMIDITY' ? '%' : ''}
+      {value} 
+      {label === 'TEMPERATURA' ? ' °C' : ''}
+      {showPercentage && label === 'HUMEDAD' ? ' %' : ''}
     </Text>
     {progress !== undefined && <ProgressBar progress={progress} color={color || '#000'} />}
   </View>

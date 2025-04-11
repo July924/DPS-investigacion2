@@ -7,6 +7,7 @@ export const dashboardStyles = StyleSheet.create({
   },
   header: {
     fontSize: 24,
+    marginTop:40,
     marginBottom: 12,
     fontWeight: 'bold',
   },

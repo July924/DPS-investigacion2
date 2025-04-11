@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ScrollView, Text, Button, StyleSheet } from 'react-native';
+import { ScrollView, Text, Button } from 'react-native';
+import * as Location from 'expo-location';
 import { Dimensions } from 'react-native';
 import SensorInfoBox from '../components/SensorInfoBox';
 import Chart from '../components/Chart';
@@ -24,52 +25,55 @@ export default function Dashboard() {
     legend: ['Humedad', 'Temperatura'],
   });
 
-  const obtenerDatosSensor = useCallback(() => {
+  const obtenerDatosSensor = useCallback(async () => {
     setSensorState('Cargando...');
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-
-        fetch(`${BASE_URL}?lat=${latitude}&lon=${longitude}&appid=${OPENWEATHER_API_KEY}&units=metric`)
-          .then((response) => response.json())
-          .then((data) => {
-            setTemperature(data.main.temp);
-            setHumidity(data.main.humidity);
-            setSensorLocation(`Lat: ${latitude.toFixed(2)}, Lon: ${longitude.toFixed(2)}`);
-            setSensorState('Activo');
-
-            setChartData((prevData) => {
-              const newLabel = new Date().toLocaleTimeString().slice(0, 5);
-              return {
-                labels: [...prevData.labels.slice(1), newLabel],
-                datasets: [
-                  {
-                    ...prevData.datasets[0],
-                    data: [...prevData.datasets[0].data.slice(1), data.main.humidity],
-                  },
-                  {
-                    ...prevData.datasets[1],
-                    data: [...prevData.datasets[1].data.slice(1), data.main.temp],
-                  },
-                ],
-                legend: prevData.legend,
-              };
-            });
-          })
-          .catch((error) => {
-            console.error("Error al obtener los datos meteorológicos:", error);
-            setSensorLocation('Ubicación no disponible');
-            setSensorState('Desactivado');
-          });
-      },
-      (error) => {
-        console.error("Error al obtener la ubicación:", error);
-        setSensorLocation('Ubicación no disponible');
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setSensorLocation('Permiso denegado');
         setSensorState('Desactivado');
-      },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
-    );
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+
+      fetch(`${BASE_URL}?lat=${latitude}&lon=${longitude}&appid=${OPENWEATHER_API_KEY}&units=metric`)
+        .then((response) => response.json())
+        .then((data) => {
+          setTemperature(data.main.temp);
+          setHumidity(data.main.humidity);
+          setSensorLocation(`Lat: ${latitude.toFixed(2)}, Lon: ${longitude.toFixed(2)}`);
+          setSensorState('Activo');
+
+          setChartData((prevData) => {
+            const newLabel = new Date().toLocaleTimeString().slice(0, 5);
+            return {
+              labels: [...prevData.labels.slice(1), newLabel],
+              datasets: [
+                {
+                  ...prevData.datasets[0],
+                  data: [...prevData.datasets[0].data.slice(1), data.main.humidity],
+                },
+                {
+                  ...prevData.datasets[1],
+                  data: [...prevData.datasets[1].data.slice(1), data.main.temp],
+                },
+              ],
+              legend: prevData.legend,
+            };
+          });
+        })
+        .catch((error) => {
+          console.error("Error al obtener los datos meteorológicos:", error);
+          setSensorLocation('Ubicación no disponible');
+          setSensorState('Desactivado');
+        });
+    } catch (error) {
+      console.error("Error al obtener la ubicación:", error);
+      setSensorLocation('Ubicación no disponible');
+      setSensorState('Desactivado');
+    }
   }, []);
 
   useEffect(() => {
@@ -89,13 +93,13 @@ export default function Dashboard() {
       <SensorInfoBox
         label="TEMPERATURA"
         value={temperature !== null ? `${temperature.toFixed(2)}` : 'Cargando...'}
-        progress={temperature / 40}
+        progress={temperature !== null ? parseFloat((temperature / 40).toFixed(2)) : 0}
         color="#4caf50"
       />
       <SensorInfoBox
         label="HUMEDAD"
         value={humidity !== null ? `${humidity.toFixed(2)}` : 'Cargando...'}
-        progress={humidity / 100}
+        progress={humidity !== null ? parseFloat((humidity / 100).toFixed(2)) : 0}
         color="#2196f3"
         showPercentage
       />
@@ -106,10 +110,7 @@ export default function Dashboard() {
         color={sensorState === 'Activo' ? 'green' : sensorState === 'Desactivado' ? 'red' : 'gray'}
       />
 
-      <Button
-        title="Actualizar manualmente"
-        onPress={obtenerDatosSensor}
-      />
+      <Button title="Actualizar manualmente" onPress={obtenerDatosSensor} />
     </ScrollView>
   );
 }
